@@ -123,22 +123,15 @@ fun MainNavGraph(navController: NavHostController) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VideoProcessorScreen(navController: NavHostController) {
-    val sheetState = rememberBottomSheetScaffoldState(
-        bottomSheetState = SheetState(
-            skipPartiallyExpanded = false,
-            initialValue = SheetValue.PartiallyExpanded
-        )
-    )
+    val sheetState = rememberBottomSheetScaffoldState()
 
     var blurSize by remember { mutableStateOf(2f) }
     var blurLevel by remember { mutableStateOf(20f) }
-    var overlayDuration by remember { mutableStateOf(1f) }
 
     BottomSheetScaffold(
         scaffoldState = sheetState,
-        sheetPeekHeight = 100.dp, // 최소로 보이는 높이
+        sheetPeekHeight = 100.dp,
         sheetContent = {
-            // 🟩 아래에서 올라오는 블러 설정 패널
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -162,21 +155,9 @@ fun VideoProcessorScreen(navController: NavHostController) {
 
                 Text("블러 강도: ${blurLevel.toInt()}")
                 Slider(value = blurLevel, onValueChange = { blurLevel = it }, valueRange = 0f..100f)
-
-                Text("오버레이 길이: ${overlayDuration.toInt()}초")
-                Slider(value = overlayDuration, onValueChange = { overlayDuration = it }, valueRange = 0f..10f)
-
-                Spacer(Modifier.height(10.dp))
-                Button(
-                    onClick = { /* TODO: 저장 or 미리보기 적용 */ },
-                    modifier = Modifier.align(Alignment.CenterHorizontally)
-                ) {
-                    Text("적용하기")
-                }
             }
         }
     ) { innerPadding ->
-        // 🟦 위쪽은 미리보기
         Box(
             modifier = Modifier
                 .padding(innerPadding)
@@ -188,7 +169,6 @@ fun VideoProcessorScreen(navController: NavHostController) {
         }
     }
 }
-
 
 // ⚪ 영상처리기 탭 임시 비워둔 화면
 @Composable
