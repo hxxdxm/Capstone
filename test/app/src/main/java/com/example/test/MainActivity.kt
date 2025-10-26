@@ -31,6 +31,8 @@ import kotlinx.coroutines.runBlocking
 
 // Theme
 import com.example.test.ui.theme.TestTheme
+import androidx.compose.material3.BottomSheetScaffold
+import androidx.compose.material3.ExperimentalMaterial3Api
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -121,77 +123,72 @@ fun MainNavGraph(navController: NavHostController) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VideoProcessorScreen(navController: NavHostController) {
+    val sheetState = rememberBottomSheetScaffoldState(
+        bottomSheetState = SheetState(
+            skipPartiallyExpanded = false,
+            initialValue = SheetValue.PartiallyExpanded
+        )
+    )
+
     var blurSize by remember { mutableStateOf(2f) }
     var blurLevel by remember { mutableStateOf(20f) }
     var overlayDuration by remember { mutableStateOf(1f) }
 
-    Scaffold(
-        // ✅ TopBar 제거
-        bottomBar = {
-            BottomNavigationBar(
-                selectedTab = "영상처리기",
-                onTabSelected = { newTab ->
-                    when (newTab) {
-                        "카메라" -> navController.navigate("camera")
-                        "갤러리" -> navController.navigate("gallery")
-                        "영상처리기" -> {} // 현재 화면
-                    }
+    BottomSheetScaffold(
+        scaffoldState = sheetState,
+        sheetPeekHeight = 100.dp, // 최소로 보이는 높이
+        sheetContent = {
+            // 🟩 아래에서 올라오는 블러 설정 패널
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.White)
+                    .padding(20.dp)
+            ) {
+                Box(
+                    Modifier
+                        .width(40.dp)
+                        .height(4.dp)
+                        .background(Color.LightGray, shape = MaterialTheme.shapes.small)
+                        .align(Alignment.CenterHorizontally)
+                )
+                Spacer(Modifier.height(12.dp))
+
+                Text("블러 설정", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Spacer(Modifier.height(16.dp))
+
+                Text("블러 크기: ${blurSize.toInt()}")
+                Slider(value = blurSize, onValueChange = { blurSize = it }, valueRange = 0f..10f)
+
+                Text("블러 강도: ${blurLevel.toInt()}")
+                Slider(value = blurLevel, onValueChange = { blurLevel = it }, valueRange = 0f..100f)
+
+                Text("오버레이 길이: ${overlayDuration.toInt()}초")
+                Slider(value = overlayDuration, onValueChange = { overlayDuration = it }, valueRange = 0f..10f)
+
+                Spacer(Modifier.height(10.dp))
+                Button(
+                    onClick = { /* TODO: 저장 or 미리보기 적용 */ },
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                ) {
+                    Text("적용하기")
                 }
-            )
+            }
         }
     ) { innerPadding ->
-        Column(
+        // 🟦 위쪽은 미리보기
+        Box(
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
-                .padding(16.dp)
+                .background(Color(0xFFEFEFEF)),
+            contentAlignment = Alignment.Center
         ) {
-            Row(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-            ) {
-                // 🟩 왼쪽: 블러 옵션 설정 패널
-                Column(
-                    modifier = Modifier
-                        .weight(0.4f)
-                        .padding(end = 12.dp)
-                ) {
-                    Text("블러 스타일", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                    Spacer(Modifier.height(10.dp))
-
-                    Text("블러 크기: ${blurSize.toInt()}")
-                    Slider(value = blurSize, onValueChange = { blurSize = it }, valueRange = 0f..10f)
-
-                    Text("블러 레벨: ${blurLevel.toInt()}")
-                    Slider(value = blurLevel, onValueChange = { blurLevel = it }, valueRange = 0f..100f)
-
-                    Spacer(Modifier.height(10.dp))
-
-                    Text("오버레이 길이: ${overlayDuration.toInt()}s")
-                    Slider(value = overlayDuration, onValueChange = { overlayDuration = it }, valueRange = 0f..10f)
-                }
-
-                // 🟦 오른쪽: 미리보기 영역
-                Box(
-                    modifier = Modifier
-                        .weight(0.6f)
-                        .fillMaxHeight()
-                        .background(Color(0xFFEFEFEF)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("🎞 미리보기 영역", color = Color.Gray)
-                }
-            }
-
-            // 🟨 하단: 타임라인
-            Column(modifier = Modifier.padding(top = 16.dp)) {
-                Text("타임라인 (영상 구간)")
-                Slider(value = 2f, onValueChange = {}, valueRange = 0f..10f)
-            }
+            Text("🎞 영상 미리보기", fontSize = 22.sp, color = Color.Gray)
         }
     }
 }
+
 
 // ⚪ 영상처리기 탭 임시 비워둔 화면
 @Composable
