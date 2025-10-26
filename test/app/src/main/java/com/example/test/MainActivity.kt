@@ -1,37 +1,36 @@
 package com.example.test
 
+// Compose 기본
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+
+// Navigation
 import androidx.navigation.NavHostController
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import com.example.test.ui.theme.TestTheme
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.platform.LocalContext
+import androidx.navigation.compose.*
+
+// DataStore
 import android.content.Context
-import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
-import androidx.datastore.preferences.core.intPreferencesKey
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import androidx.datastore.preferences.core.stringSetPreferencesKey
+
+// Theme
+import com.example.test.ui.theme.TestTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -44,39 +43,168 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MainScreen(navController: NavHostController) {
+    var selectedTab by remember { mutableStateOf("영상처리기") }
+    var menuExpanded by remember { mutableStateOf(false) }
+
+    Scaffold(
+        topBar = {
+            // 🟦 상단 Mozik + ⋮ 점 3개
+            TopAppBar(
+                title = {
+                    Text(
+                        text = "Mozik",
+                        fontSize = 33.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black
+                    )
+                },
+                actions = {
+                    Box {
+                        IconButton(onClick = { menuExpanded = true }) {
+                            Text("⋮", fontSize = 33.sp, color = Color.Black)
+                        }
+                        DropdownMenu(
+                            expanded = menuExpanded,
+                            onDismissRequest = { menuExpanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("설정") },
+                                onClick = {
+                                    menuExpanded = false
+                                    navController.navigate("settings")
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("앱 정보") },
+                                onClick = { menuExpanded = false }
+                            )
+                        }
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+            )
+        },
+
+        bottomBar = {
+            BottomNavigationBar(
+                selectedTab = selectedTab,
+                onTabSelected = { newTab -> selectedTab = newTab }
+            )
+        }
+    ) { innerPadding ->
+        Box(modifier = Modifier.padding(innerPadding)) {
+            when (selectedTab) {
+                "영상처리기" -> VideoProcessorScreen(navController)
+                "카메라" -> CameraScreen()
+                "갤러리" -> GalleryScreen()
+            }
+        }
+    }
+}
 
 @Composable
 fun MainNavGraph(navController: NavHostController) {
     NavHost(
         navController = navController,
-        startDestination = "settings"
+        startDestination = "main"
     ) {
-        composable("settings") { SettingsScreen(navController) }
-        composable("camera") { CameraScreen() }
-        composable("gallery") { GalleryScreen() }
+        composable("main") { MainScreen(navController) }
+        composable("settings") { SettingsContent(navController) }
         composable("face_register") { FaceRegisterScreen(navController) }
         composable("face_list") { FaceListScreen(navController) }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(navController: NavHostController) {
-    var selectedTab by remember { mutableStateOf("설정") }
+fun VideoProcessorScreen(navController: NavHostController) {
+    var blurSize by remember { mutableStateOf(2f) }
+    var blurLevel by remember { mutableStateOf(20f) }
+    var overlayDuration by remember { mutableStateOf(1f) }
 
     Scaffold(
+        // ✅ TopBar 제거
         bottomBar = {
-            BottomNavigationBar(selectedTab) { newTab ->
-                selectedTab = newTab
-            }
+            BottomNavigationBar(
+                selectedTab = "영상처리기",
+                onTabSelected = { newTab ->
+                    when (newTab) {
+                        "카메라" -> navController.navigate("camera")
+                        "갤러리" -> navController.navigate("gallery")
+                        "영상처리기" -> {} // 현재 화면
+                    }
+                }
+            )
         }
     ) { innerPadding ->
-        Box(modifier = Modifier.padding(innerPadding)) {
-            when (selectedTab) {
-                "설정" -> SettingsContent(navController)
-                "카메라" -> CameraScreen()
-                "갤러리" -> GalleryScreen()
+        Column(
+            modifier = Modifier
+                .padding(innerPadding)
+                .fillMaxSize()
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) {
+                // 🟩 왼쪽: 블러 옵션 설정 패널
+                Column(
+                    modifier = Modifier
+                        .weight(0.4f)
+                        .padding(end = 12.dp)
+                ) {
+                    Text("블러 스타일", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Spacer(Modifier.height(10.dp))
+
+                    Text("블러 크기: ${blurSize.toInt()}")
+                    Slider(value = blurSize, onValueChange = { blurSize = it }, valueRange = 0f..10f)
+
+                    Text("블러 레벨: ${blurLevel.toInt()}")
+                    Slider(value = blurLevel, onValueChange = { blurLevel = it }, valueRange = 0f..100f)
+
+                    Spacer(Modifier.height(10.dp))
+
+                    Text("오버레이 길이: ${overlayDuration.toInt()}s")
+                    Slider(value = overlayDuration, onValueChange = { overlayDuration = it }, valueRange = 0f..10f)
+                }
+
+                // 🟦 오른쪽: 미리보기 영역
+                Box(
+                    modifier = Modifier
+                        .weight(0.6f)
+                        .fillMaxHeight()
+                        .background(Color(0xFFEFEFEF)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("🎞 미리보기 영역", color = Color.Gray)
+                }
+            }
+
+            // 🟨 하단: 타임라인
+            Column(modifier = Modifier.padding(top = 16.dp)) {
+                Text("타임라인 (영상 구간)")
+                Slider(value = 2f, onValueChange = {}, valueRange = 0f..10f)
             }
         }
+    }
+}
+
+// ⚪ 영상처리기 탭 임시 비워둔 화면
+@Composable
+fun EmptyVideoScreen() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "영상처리기 기능 준비 중...",
+            fontSize = 18.sp,
+            color = Color.Gray
+        )
     }
 }
 
@@ -87,14 +215,34 @@ fun SettingsContent(navController: NavHostController) {
             .fillMaxSize()
             .padding(20.dp)
     ) {
-        Text(
-            text = "Mozik",
-            fontSize = 33.sp,
-            fontWeight = FontWeight.ExtraBold,
-            color = Color(0xFF111111),
-            modifier = Modifier.align(Alignment.Start)
-        )
+        // 🔹 상단 타이틀 줄 (< + Mozik)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            // 뒤로가기 <
+            Text(
+                text = "<",
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black,
+                modifier = Modifier
+                    .clickable {
+                        navController.navigate("video_processor")
+                    } // 뒤로가기
+                    .padding(end = 12.dp)
+            )
 
+            // 제목 Mozik
+            Text(
+                text = "Mozik",
+                fontSize = 33.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = Color(0xFF111111)
+            )
+        }
+
+        // 🔹 검은 줄 구분선
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -103,6 +251,7 @@ fun SettingsContent(navController: NavHostController) {
                 .padding(bottom = 16.dp)
         )
 
+        // 🔹 모자이크 / 블러 섹션
         MosiacSection(navController)
     }
 }
@@ -111,20 +260,23 @@ fun SettingsContent(navController: NavHostController) {
 fun MosiacSection(navController: NavHostController) {
     val context = LocalContext.current
 
-    // ✅ 앱 시작 시 저장된 상태 불러오기
+    // 저장된 상태 불러오기
     val (savedMosaic, savedFace, savedPlate) = loadMosaicStates(context)
 
-    // ✅ rememberSaveable + 저장된 값으로 초기화
     var mosaicOn by rememberSaveable { mutableStateOf(savedMosaic) }
     var faceOn by rememberSaveable { mutableStateOf(savedFace) }
     var plateOn by rememberSaveable { mutableStateOf(savedPlate) }
+    var blurValue by rememberSaveable { mutableStateOf(30f) } // ✅ 블러 강도 (0~100)
 
-    // ✅ 값이 바뀔 때마다 DataStore에 자동 저장
-    LaunchedEffect(mosaicOn, faceOn, plateOn) {
+    // 상태 저장
+    LaunchedEffect(mosaicOn, faceOn, plateOn, blurValue) {
         saveMosaicStates(context, mosaicOn, faceOn, plateOn)
+        saveBlurValue(context, blurValue)
     }
 
     Column(modifier = Modifier.fillMaxWidth()) {
+
+        // 모자이크 스위치
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -160,16 +312,23 @@ fun MosiacSection(navController: NavHostController) {
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        MosaicList(
-            isActive = mosaicOn,
-            faceOn = faceOn,
-            plateOn = plateOn,
-            onFaceChange = { faceOn = it },
-            onPlateChange = { plateOn = it },
-            navController = navController
-        )
+        // ✅ 모자이크가 켜졌을 때만 하위 항목 표시
+        if (mosaicOn) {
+            MosaicList(
+                isActive = mosaicOn,
+                faceOn = faceOn,
+                plateOn = plateOn,
+                onFaceChange = { faceOn = it },
+                onPlateChange = { plateOn = it },
+                navController = navController
+            )
+
+            // ✅ 블러 설정 추가
+            BlurSetting(blurValue = blurValue, onBlurChange = { blurValue = it })
+        }
     }
 }
+
 @Composable
 fun MosaicList(
     isActive: Boolean,
@@ -203,6 +362,7 @@ fun MosaicList(
         )
     }
 }
+
 @Composable
 fun MosaicItemFace(
     title: String,
@@ -405,9 +565,53 @@ fun GalleryScreen() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AppTopBar(navController: NavHostController) {
+    var expanded by remember { mutableStateOf(false) }
+
+    TopAppBar(
+        title = {
+            Text(
+                "Mozik 영상처리기",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black
+            )
+        },
+        actions = {
+            Box {
+                IconButton(onClick = { expanded = true }) {
+                    Text("⋮", fontSize = 22.sp, color = Color.Black)
+                }
+
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("설정") },
+                        onClick = {
+                            expanded = false
+                            navController.navigate("settings")
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("앱 정보") },
+                        onClick = { expanded = false }
+                    )
+                }
+            }
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.White)
+    )
+}
+
 @Composable
 fun BottomNavigationBar(selectedTab: String, onTabSelected: (String) -> Unit) {
-    val tabs = listOf("설정", "카메라", "갤러리")
+    val tabs = listOf("영상처리기", "카메라", "갤러리") // ✅ 수정
 
     NavigationBar(containerColor = Color.White) {
         tabs.forEach { tab ->
@@ -440,6 +644,7 @@ private val FACE_ON = booleanPreferencesKey("face_on")
 private val PLATE_ON = booleanPreferencesKey("plate_on")
 private val FACE_COUNT = intPreferencesKey("face_count")
 private val FACE_LIST = stringSetPreferencesKey("face_list")
+private val BLUR_VALUE = floatPreferencesKey("blur_value")
 
 // 상태 저장
 suspend fun saveMosaicStates(context: Context, mosaicOn: Boolean, faceOn: Boolean, plateOn: Boolean) {
@@ -468,7 +673,7 @@ fun loadFaceCount(context: Context): Int = runBlocking {
     prefs[FACE_COUNT] ?: 0
 }
 
-// ✅ 얼굴 목록 저장 / 불러오기
+// 얼굴 목록 저장 / 불러오기
 suspend fun saveFaceList(context: Context, list: Set<String>) {
     context.dataStore.edit { prefs -> prefs[FACE_LIST] = list }
 }
@@ -478,6 +683,15 @@ fun loadFaceList(context: Context): MutableList<String> = runBlocking {
     prefs[FACE_LIST]?.toMutableList() ?: mutableListOf()
 }
 
+//블러 값 저장
+suspend fun saveBlurValue(context: Context, value: Float) {
+    context.dataStore.edit { prefs -> prefs[BLUR_VALUE] = value }
+}
+
+fun loadBlurValue(context: Context): Float = runBlocking {
+    val prefs = context.dataStore.data.first()
+    prefs[BLUR_VALUE] ?: 30f
+}
 @Composable
 fun FaceListScreen(navController: NavHostController) {
     val context = LocalContext.current
@@ -565,5 +779,40 @@ fun FaceListScreen(navController: NavHostController) {
         ) {
             Text("임의 등록 추가하기 (+1)")
         }
+    }
+}
+@Composable
+fun BlurSetting(blurValue: Float, onBlurChange: (Float) -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp)
+    ) {
+        Text(
+            text = "블러 강도",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Medium,
+            color = Color(0xFF333333)
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Slider(
+            value = blurValue,
+            onValueChange = onBlurChange,
+            valueRange = 0f..100f,
+            steps = 9, // 0~100 구간을 10단계 정도로
+            colors = SliderDefaults.colors(
+                thumbColor = Color(0xFF0099FF),
+                activeTrackColor = Color(0xFF0099FF)
+            )
+        )
+
+        Text(
+            text = "${blurValue.toInt()}",
+            fontSize = 16.sp,
+            color = Color.Gray,
+            modifier = Modifier.align(Alignment.End)
+        )
     }
 }
