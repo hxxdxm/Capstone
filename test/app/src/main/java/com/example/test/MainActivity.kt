@@ -1,6 +1,8 @@
 package com.example.test
 
 // Compose 기본
+import com.example.test.ui.auth.LoginScreen
+import com.example.test.ui.auth.SignupScreen
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -33,6 +35,9 @@ import kotlinx.coroutines.runBlocking
 import com.example.test.ui.theme.TestTheme
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.ExperimentalMaterial3Api
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import com.example.test.network.AuthApi
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -40,11 +45,22 @@ class MainActivity : ComponentActivity() {
         setContent {
             TestTheme {
                 val navController = rememberNavController()
-                MainNavGraph(navController)
+
+                // ✅ Retrofit 객체 생성
+                val retrofit = Retrofit.Builder()
+                    .baseUrl("http://10.0.2.2:8080/") // 에뮬레이터에서 localhost 접속용
+                    .addConverterFactory(GsonConverterFactory.create())
+                    .build()
+
+                val api = retrofit.create(AuthApi::class.java)
+
+                // ✅ NavGraph에 실제 api 전달
+                MainNavGraph(navController, api)
             }
         }
     }
 }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(navController: NavHostController) {
@@ -108,18 +124,20 @@ fun MainScreen(navController: NavHostController) {
 }
 
 @Composable
-fun MainNavGraph(navController: NavHostController) {
-    NavHost(
-        navController = navController,
-        startDestination = "main"
-    ) {
-        composable("main") { MainScreen(navController) }
+fun MainNavGraph(navController: NavHostController, api: AuthApi) {
+    NavHost(navController = navController, startDestination = "login") {
+
+        // 🔹 로그인 / 회원가입 추가
+        composable("login") { LoginScreen(navController, api) }
+        composable("signup") { SignupScreen(navController, api) }
+
+        // 🔹 기존 화면 유지
+        composable("video_processor") { VideoProcessorScreen(navController) }
         composable("settings") { SettingsContent(navController) }
-        composable("face_register") { FaceRegisterScreen(navController) }
-        composable("face_list") { FaceListScreen(navController) }
+        composable("camera") { CameraScreen() }
+        composable("gallery") { GalleryScreen() }
     }
 }
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VideoProcessorScreen(navController: NavHostController) {
@@ -165,7 +183,7 @@ fun VideoProcessorScreen(navController: NavHostController) {
                 .background(Color(0xFFEFEFEF)),
             contentAlignment = Alignment.Center
         ) {
-            Text("🎞 영상 미리보기", fontSize = 22.sp, color = Color.Gray)
+            Text("🎞 영상 선택하기", fontSize = 22.sp, color = Color.Gray)
         }
     }
 }
@@ -538,7 +556,7 @@ fun CameraScreen() {
 @Composable
 fun GalleryScreen() {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text("🖼 갤러리 화면", fontSize = 22.sp)
+        Text("🖼 갤러리 목록", fontSize = 22.sp)
     }
 }
 
@@ -649,7 +667,6 @@ fun loadFaceCount(context: Context): Int = runBlocking {
     val prefs = context.dataStore.data.first()
     prefs[FACE_COUNT] ?: 0
 }
-
 // 얼굴 목록 저장 / 불러오기
 suspend fun saveFaceList(context: Context, list: Set<String>) {
     context.dataStore.edit { prefs -> prefs[FACE_LIST] = list }
